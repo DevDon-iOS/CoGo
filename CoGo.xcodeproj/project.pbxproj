@@ -10,9 +10,22 @@
 		F64BB9B52F7662B200E13191 /* CoGo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CoGo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		F6210E8D2F7B8C66008569CD /* Exceptions for "CoGo" folder in "CoGo" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = F64BB9B42F7662B200E13191 /* CoGo */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		F64BB9B72F7662B200E13191 /* CoGo */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				F6210E8D2F7B8C66008569CD /* Exceptions for "CoGo" folder in "CoGo" target */,
+			);
 			path = CoGo;
 			sourceTree = "<group>";
 		};
@@ -256,6 +269,8 @@
 				DEVELOPMENT_TEAM = 2W9KP2B6Y9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CoGo/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "카메라 사용을 위해 접근 권한이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -288,6 +303,8 @@
 				DEVELOPMENT_TEAM = 2W9KP2B6Y9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CoGo/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "카메라 사용을 위해 접근 권한이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

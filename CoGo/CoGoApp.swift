@@ -12,6 +12,9 @@ struct CoGoApp: App {
     var body: some Scene {
         WindowGroup {
             MaintabView()
+//                .toolbar(id: "browserToolbar") {
+//                        
+//                }
         }
     }
 }
