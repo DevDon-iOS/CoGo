@@ -12,7 +12,13 @@ import SwiftUI
 
 struct CollectionView: View {
     // 임시 코드
-    let profiles = ["user_01", "user_02", "user_03", "user_04", "user_05"]
+    let profiles: [BubbleProfile] = [
+        BubbleProfile(id: 0, imageName: "user_01", name: "남기하", nickname: "Kei"),
+        BubbleProfile(id: 1, imageName: "user_01", name: "최봉권", nickname: "BK"),
+        BubbleProfile(id: 2, imageName: "user_01", name: "오효준", nickname: "Asher"),
+        BubbleProfile(id: 3, imageName: "user_01", name: "류세환", nickname: "Shayne"),
+        BubbleProfile(id: 4, imageName: "user_01", name: "김현일", nickname: "링쿠")
+    ]
     
     // 드래그 상태값(드래그 이동의 핵심)
     /// @State는 SwiftUI 뷰 내부에서 값이 바뀌고 그 값이 바뀌면 화면도 다시 그려져야 할 때 사용
@@ -20,8 +26,8 @@ struct CollectionView: View {
     @State private var accumulatedOffset: CGSize = .zero
     /// dragOffset은 지금 손가락으로 드래그 하고있는 실시간 이동량
     @State private var dragOffset: CGSize = .zero
-    /// 기본상태는 isProfileModalPresented = false, 버블 터치시 true로 바뀌며 모달이 호출됨
-    @State private var isProfileModalPresented = false
+    /// 어떤 프로필을 선택했는지 체크
+    @State private var selectedProfile: BubbleProfile?
     
     // 레이아웃 설정값
     /// 버블의 크기
@@ -40,7 +46,7 @@ struct CollectionView: View {
         (0..<(rowCount * columnCount)).map { index in
             BubbleItem(
                 id: index,
-                imageName: profiles[index % profiles.count],
+                profile: profiles[index % profiles.count],
                 row: index / columnCount,
                 column: index % columnCount
             )
@@ -63,7 +69,7 @@ struct CollectionView: View {
                 
                 /// bubbleItems 배열을 하나씩 돌면서 버블을 생성
                 ForEach(bubbleItems) { item in
-                    ProfileCellView(imageName: item.imageName)
+                    ProfileCellView(imageName: item.profile.imageName)
                         .frame(width: bubbleSize, height: bubbleSize)
                         /// 버블 좌표 계산
                         .position(
@@ -81,7 +87,7 @@ struct CollectionView: View {
                                 + bubbleSize / 2
                         )
                         .onTapGesture {
-                            isProfileModalPresented = true
+                            selectedProfile = item.profile
                         }
                 }
             }
@@ -115,17 +121,28 @@ struct CollectionView: View {
             /// 버블 군집을 드래그하다가 화면 밖으로 나간 부분을 자름
             .clipped()
         }
-        .sheet(isPresented: $isProfileModalPresented) {
-            ProfileModalView()
+        .sheet(item: $selectedProfile) { profile in
+            ProfileModalView(
+                imageName: profile.imageName,
+                name: profile.name,
+                nickname: profile.nickname
+                )
                 .presentationDetents([.fraction(0.7)])
         }
     }
 }
 
+struct BubbleProfile: Identifiable {
+    let id: Int
+    let imageName: String
+    let name: String
+    let nickname: String
+}
+
 /// 버블 하나를 표현하는 간단한 데이터 모델
 struct BubbleItem: Identifiable {
     let id: Int
-    let imageName: String
+    let profile: BubbleProfile
     let row: Int
     let column: Int
 }
