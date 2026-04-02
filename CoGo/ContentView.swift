@@ -15,6 +15,7 @@ struct ContentView: View {
     /// 기본상태는 false, 버튼을 누르면 true, 시트가 닫히면 다시 false
     @State private var isProfileModalPresented = false
     @State private var isMazeButtonTapped = false
+    @State private var isBumpModalPresented = false
     /// 빨간 점의 현위치를 미로 크기 대비 비율로 저장
     /// mazeSize는 미로 기준판 크기
     @State private var playerXRatio: CGFloat = 155.0 / 300.0
@@ -29,6 +30,8 @@ struct ContentView: View {
     @State private var repeatTimer: Timer?
     /// 빨간 점의 크기. 미로이미지 영역 경계 계산을 위함
     private let playerDotSize: CGFloat = 10.0
+    /// 도착 판정 오차범위
+    private let goalTolerance: CGFloat = 0.02
 
     /// 빨간 점을 dx, dy만큼 움직이되 미로 밖으로 나가지 못하게 막는 함수
     private func movePlayer(dx: CGFloat, dy: CGFloat) {
@@ -43,8 +46,23 @@ struct ContentView: View {
         /// 제한 로직(최소보다 작아질 수 없고, 최대보다 커질 수 없음)
         playerXRatio = min(max(nextX, minRatio), maxRatio)
         playerYRatio = min(max(nextY, minRatio), maxRatio)
+        /// 사용자가 버튼을 눌러 움직일 때마다 도착 검사
+        checkGoalReached()
     }
     
+    /// 플레이어가 도착점에 도달했는지 검사하는 함수
+    /// abs는 절댓값. 플레이어가 목표보다 왼쪽이든 오른쪽이든 차이의 크기만 확인하면 되기 때문
+    private func checkGoalReached() {
+        let isGoalXMatched = abs(playerXRatio - goalXRatio) <= goalTolerance
+        let isGoalYMatched = abs(playerYRatio - goalYRatio) <= goalTolerance
+        
+        /// x도 맞고 y도 맞아야 성공처리
+        if isGoalXMatched && isGoalYMatched {
+            /// 길게 누르는 도중 도착했으면 타이머가 켜져있을 수 있으니 도착 즉시 반복입력 중단
+            stopRepeatingMove()
+            isBumpModalPresented = true
+        }
+    }
     /// 버튼을 길게 누르고있을 때 반복이동을 시작하는 함수
     /// 기존 타이머를 끔(새 타이머 시작 전 기존 타이머를 정리)
     private func startRepeatingMove(dx: CGFloat, dy: CGFloat, step: CGFloat) {
@@ -64,7 +82,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // AI 사용한 부분
+                // MARK: - AI 사용한 부분
                 CameraPreviewView(session: cameraManager.session)
                     .ignoresSafeArea()
                     .blur(radius: isMazeButtonTapped ? 6 : 0)
@@ -75,6 +93,10 @@ struct ContentView: View {
                     if !isMazeButtonTapped {
                         Button {
                             isMazeButtonTapped = true
+                            isBumpModalPresented = false
+                            playerXRatio = 155.0/300.0
+                            playerYRatio = 291.0/300.0
+                            
                         } label: {
                             Text("랜덤 미로 생성")
                                 .font(Font.body.bold())
@@ -105,6 +127,7 @@ struct ContentView: View {
                         .onTapGesture {
                             stopRepeatingMove()
                             isMazeButtonTapped = false
+                            isBumpModalPresented = false
                         }
                     
                     /// playerX, playerY는 실제 화면 좌표
@@ -208,6 +231,15 @@ struct ContentView: View {
         .sheet(isPresented: $isProfileModalPresented) {
             ProfileModalView()
                 .presentationDetents([.fraction(0.7)])
+        }
+        .sheet(isPresented: $isBumpModalPresented) {
+            BumpModalView {
+                isBumpModalPresented = false
+                isMazeButtonTapped = false
+            }
+            .presentationDetents([.fraction(0.35)])
+            /// 잡고 드래그할 수 있는 인디케이터
+            .presentationDragIndicator(.visible)
         }
     }
 }
