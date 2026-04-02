@@ -229,8 +229,12 @@ struct ContentView: View {
         }
         /// 실제로 시트를 연결하는 줄
         .sheet(isPresented: $isProfileModalPresented) {
-            ProfileModalView()
-                .presentationDetents([.fraction(0.7)])
+            ProfileModalView(
+                imageName: "user_don",
+                name: "이돈혁",
+                nickName: "Donny"
+            )
+            .presentationDetents([.fraction(0.7)])
         }
         .sheet(isPresented: $isBumpModalPresented) {
             BumpModalView {

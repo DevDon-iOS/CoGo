@@ -14,10 +14,10 @@ struct CollectionView: View {
     // 임시 코드
     let profiles: [BubbleProfile] = [
         BubbleProfile(id: 0, imageName: "user_01", name: "남기하", nickname: "Kei"),
-        BubbleProfile(id: 1, imageName: "user_01", name: "최봉권", nickname: "BK"),
-        BubbleProfile(id: 2, imageName: "user_01", name: "오효준", nickname: "Asher"),
-        BubbleProfile(id: 3, imageName: "user_01", name: "류세환", nickname: "Shayne"),
-        BubbleProfile(id: 4, imageName: "user_01", name: "김현일", nickname: "링쿠")
+        BubbleProfile(id: 1, imageName: "user_02", name: "최봉권", nickname: "BK"),
+        BubbleProfile(id: 2, imageName: "user_03", name: "오효준", nickname: "Asher"),
+        BubbleProfile(id: 3, imageName: "user_04", name: "류세환", nickname: "Shayne"),
+        BubbleProfile(id: 4, imageName: "user_05", name: "김현일", nickname: "링쿠")
     ]
     
     // 드래그 상태값(드래그 이동의 핵심)
@@ -53,39 +53,77 @@ struct CollectionView: View {
         }
     }
     
+    /// 전체 버블 군집의 가로 길이를 계산하는 함수
+    /// 반환값은 CGFloat
+    /// CGFloat란 화면상의 좌표, 너비, 높이 등 그래픽 요소의 수치를 다룰 때 사용하는 실수형 데이터 타입
+    private func totalWidth() -> CGFloat {
+        /// 버블 너비 합산 + 버블 사이 간격 합산
+        CGFloat(columnCount) * bubbleSize + CGFloat(columnCount - 1) * horizontalSpacing
+    }
+    
+    private func totalHeight() -> CGFloat {
+        CGFloat(rowCount) * bubbleSize + CGFloat(rowCount - 1) * verticalSpacing
+    }
+    
+    /// 화면 내 버블이 있어야 할 좌표를 계산해 CGPoint로 반환
+    /// CGPoint는 특정한 점의 위치를 나타내는 구조체
+    /// CGFloat 2개가 모여 하나의 점을 만들어냄(x좌표, y좌표)
+    private func bubblePosition(for item: BubbleItem, in geometry: GeometryProxy) -> CGPoint {
+        /// 전체 버블 군집 시작점을 화면 중심 기준으로 맞춤
+        /// 화면 가로/세로 중앙 - 전체 폭/높이의 절반
+        let startX = geometry.size.width / 2 - totalWidth() / 2
+        let startY = geometry.size.height / 2 - totalHeight() / 2
+        
+        /// 현재 버블의 가로 위치를 계산
+        let x = startX
+        + CGFloat(item.column) * (bubbleSize + horizontalSpacing)
+        + bubbleSize / 2
+        /// 홀수 줄이면 반 칸 오른쪽으로 밀어 대각선 배열 만들기
+        + (item.row.isMultiple(of: 2) ? 0: (bubbleSize + horizontalSpacing) / 2)
+        
+        let y = startY
+        + CGFloat(item.row) * (bubbleSize + verticalSpacing)
+        + bubbleSize / 2
+        
+        /// 결국 버블 하나의 위치를 점 하나로 반환
+        return CGPoint(x: x, y: y)
+    }
+    
     var body: some View {
-        /// 전체 화면의 크기를 읽기 위해 사용
+
+// MARK: - 타입추론 에러 해결을 위해 body 내 계산을 상단의 별도 함수로 이동
+        
+//        /// 전체 화면의 크기를 읽기 위해 사용
         GeometryReader { geometry in
-            /// 전체 버블 묶음 크기를 계산
-            let totalWidth = CGFloat(columnCount) * bubbleSize + CGFloat(columnCount - 1) * horizontalSpacing
-            let totalHeight = CGFloat(rowCount) * bubbleSize + CGFloat(rowCount - 1) * verticalSpacing
-            /// 전체 버블 묶음의 시작점을 중앙 기준으로 맞추는 계산
-            let startX = geometry.size.width / 2 - totalWidth / 2
-            let startY = geometry.size.height / 2 - totalHeight / 2
-            
+//            /// 전체 버블 묶음 크기를 계산
+//            let totalWidth = CGFloat(columnCount) * bubbleSize + CGFloat(columnCount - 1) * horizontalSpacing
+//            let totalHeight = CGFloat(rowCount) * bubbleSize + CGFloat(rowCount - 1) * verticalSpacing
+//            /// 전체 버블 묶음의 시작점을 중앙 기준으로 맞추는 계산
+//            let startX = geometry.size.width / 2 - totalWidth / 2
+//            let startY = geometry.size.height / 2 - totalHeight / 2
+//            
             ZStack {
-                /// 투명한 배경
-                Color.clear
                 
                 /// bubbleItems 배열을 하나씩 돌면서 버블을 생성
                 ForEach(bubbleItems) { item in
+                    // MARK: - 타입추론 에러 해결을 위해 body 내 계산을 상단의 별도 함수로 이동
+                    
+//                    /// 현재 버블의 가로위치 계산 시작점
+//                    let x = startX
+//                        /// 가로로 몇 칸 이동할지 계산하는 부분
+//                        + CGFloat(item.column) * (bubbleSize + horizontalSpacing)
+//                        /// 버블의 중심 좌표 보정
+//                        + bubbleSize / 2
+//                        + (item.row.isMultiple(of: 2) ? 0 : (bubbleSize + horizontalSpacing) / 2)
+//
+//                    let y = startY
+//                        + CGFloat(item.row) * (bubbleSize + verticalSpacing)
+//                        + bubbleSize / 2
+                    let position = bubblePosition(for: item, in: geometry)
+                    
                     ProfileCellView(imageName: item.profile.imageName)
                         .frame(width: bubbleSize, height: bubbleSize)
-                        /// 버블 좌표 계산
-                        .position(
-                            /// x좌표
-                            /// startX: 전체 버블 묶음 시작 x좌표
-                            x: startX
-                                /// 몇 번째 칸인지에 따라 가로로 이동(기본 격자 위치 계산)
-                                + CGFloat(item.column) * (bubbleSize + horizontalSpacing)
-                                /// 격자모양을 유지하기 위해 반지름만큼 x좌표를 이동시킴
-                                + bubbleSize / 2
-                                /// 짝수 줄이면 그대로, 홀수 줄이면 반 칸 밀어줌
-                                + (item.row.isMultiple(of: 2) ? 0 : (bubbleSize + horizontalSpacing) / 2),
-                            y: startY
-                                + CGFloat(item.row) * (bubbleSize + verticalSpacing)
-                                + bubbleSize / 2
-                        )
+                        .position(position)
                         .onTapGesture {
                             selectedProfile = item.profile
                         }
@@ -125,13 +163,14 @@ struct CollectionView: View {
             ProfileModalView(
                 imageName: profile.imageName,
                 name: profile.name,
-                nickname: profile.nickname
+                nickName: profile.nickname
                 )
                 .presentationDetents([.fraction(0.7)])
         }
     }
 }
 
+/// 버블 안 사람의 정보
 struct BubbleProfile: Identifiable {
     let id: Int
     let imageName: String
