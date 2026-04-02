@@ -15,6 +15,9 @@ struct BumpModalView: View {
             Text("Bump!")
                 .font(.largeTitle.bold())
             
+            Text("네임드랍으로 연락처를 공유하세요")
+                .font(.title3)
+                .multilineTextAlignment(.center)
         }
     }
 }

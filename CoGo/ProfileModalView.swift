@@ -11,7 +11,7 @@ struct ProfileModalView: View {
     
     let imageName: String
     let name: String
-    let nickName: String
+    let nickname: String
     
     var body: some View {
         VStack(spacing: 16) {
@@ -32,7 +32,7 @@ struct ProfileModalView: View {
                 .padding(.vertical, 12)
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(10)
-            Text(nickName)
+            Text(nickname)
                 .font(.title3.bold())
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.horizontal, 16)

@@ -28,6 +28,10 @@ struct CollectionView: View {
     @State private var dragOffset: CGSize = .zero
     /// 어떤 프로필을 선택했는지 체크
     @State private var selectedProfile: BubbleProfile?
+    /// 현재 확대/축소 배율 (기본값 1.0)
+    @State private var scale: CGFloat = 1.0
+    /// 핀치 중 실시간 배율 변화
+    @State private var gestureScale: CGFloat = 1.0
     
     // 레이아웃 설정값
     /// 버블의 크기
@@ -47,6 +51,8 @@ struct CollectionView: View {
             BubbleItem(
                 id: index,
                 profile: profiles[index % profiles.count],
+                /// 10번 미만의 프로필은 컬러처리, 나머지는 흑백으로 비활성화
+                isActive: index < 10,
                 row: index / columnCount,
                 column: index % columnCount
             )
@@ -72,7 +78,9 @@ struct CollectionView: View {
         /// 전체 버블 군집 시작점을 화면 중심 기준으로 맞춤
         /// 화면 가로/세로 중앙 - 전체 폭/높이의 절반
         let startX = geometry.size.width / 2 - totalWidth() / 2
-        let startY = geometry.size.height / 2 - totalHeight() / 2
+        /// safearea를 무시하도록 설정했기 때문에 과하게 아래로 파묻히지 않도록 위치 보정
+        let visualCenterYOffset: CGFloat = -16
+        let startY = geometry.size.height / 2 - totalHeight() / 2 + visualCenterYOffset
         
         /// 현재 버블의 가로 위치를 계산
         let x = startX
@@ -101,7 +109,7 @@ struct CollectionView: View {
 //            /// 전체 버블 묶음의 시작점을 중앙 기준으로 맞추는 계산
 //            let startX = geometry.size.width / 2 - totalWidth / 2
 //            let startY = geometry.size.height / 2 - totalHeight / 2
-//            
+            
             ZStack {
                 
                 /// bubbleItems 배열을 하나씩 돌면서 버블을 생성
@@ -122,10 +130,14 @@ struct CollectionView: View {
                     let position = bubblePosition(for: item, in: geometry)
                     
                     ProfileCellView(imageName: item.profile.imageName)
+                        .saturation(item.isActive ? 1 : 0)
+                        .opacity(item.isActive ? 1 : 0.45)
                         .frame(width: bubbleSize, height: bubbleSize)
                         .position(position)
                         .onTapGesture {
-                            selectedProfile = item.profile
+                            if item.isActive {
+                                selectedProfile = item.profile
+                            }
                         }
                 }
             }
@@ -134,36 +146,47 @@ struct CollectionView: View {
                 x: accumulatedOffset.width + dragOffset.width,
                 y: accumulatedOffset.height + dragOffset.height
             )
+            .scaleEffect(scale * gestureScale)
             /// 터치 영역 지정
             .contentShape(Rectangle())
             /// 손가락 드래그를 받음
             .gesture(
-                DragGesture()
-                    /// 손가락을 움직이는 동안 계속 호출됨
-                    /// 드래그 시작점 기준으로 얼마나 움직였는지 계산 후 그 값을 dragOffset에 넣음
-                    .onChanged { value in
-                        dragOffset = value.translation
-                    }
-                    /// 드래그 종료
-                    /// 손가락을 떼는 순간 호출됨
-                    .onEnded { value in
-                        /// 지금까지 이동한 양을 누적값에 더함
-                        accumulatedOffset.width += value.translation.width
-                        accumulatedOffset.height += value.translation.height
-                        /// 실시간 드래그 값은 초기화(이미 이동한 값은 누적값으로 저장됐기 때문)
-                        dragOffset = .zero
-                    }
+                // MARK: - AI 사용한 부분
+                /// 핀치 + 드래그 동시에 가능하도록
+                SimultaneousGesture(
+                    DragGesture()
+                        .onChanged { value in
+                            dragOffset = value.translation
+                        }
+                        .onEnded { value in
+                            accumulatedOffset.width += value.translation.width
+                            accumulatedOffset.height += value.translation.height
+                            dragOffset = .zero
+                        },
+                    MagnificationGesture()
+                        .onChanged { value in
+                            /// value는 1.0 기준
+                            gestureScale = value
+                        }
+                        .onEnded { value in
+                            let newScale = scale * value
+                            /// 0.7 ~ 1.3 범위로 제한
+                            scale = min(max(newScale, 0.7), 1.3)
+                            gestureScale = 1.0
+                        }
+                )
             )
             /// 가능한 한 부모 뷰 크기를 꽉 채움
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            /// 버블 군집을 드래그하다가 화면 밖으로 나간 부분을 자름
-            .clipped()
+//            /// 버블 군집을 드래그하다가 화면 밖으로 나간 부분을 자름
+//            .clipped()
         }
+        .ignoresSafeArea(.container, edges: .bottom)
         .sheet(item: $selectedProfile) { profile in
             ProfileModalView(
                 imageName: profile.imageName,
                 name: profile.name,
-                nickName: profile.nickname
+                nickname: profile.nickname
                 )
                 .presentationDetents([.fraction(0.7)])
         }
@@ -182,6 +205,8 @@ struct BubbleProfile: Identifiable {
 struct BubbleItem: Identifiable {
     let id: Int
     let profile: BubbleProfile
+    /// 버블의 활성상태(흑백 또는 컬러)
+    let isActive: Bool
     let row: Int
     let column: Int
 }

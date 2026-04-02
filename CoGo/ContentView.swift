@@ -21,7 +21,7 @@ struct ContentView: View {
     @State private var playerXRatio: CGFloat = 155.0 / 300.0
     @State private var playerYRatio: CGFloat = 291.0 / 300.0
     /// 도착지점 상대값
-    @State private var goalXRatio: CGFloat = 155.0 / 300.0
+    @State private var goalXRatio: CGFloat = 142.0 / 300.0
     @State private var goalYRatio: CGFloat = 9.0 / 300.0
     /// 미로 기준판 크기
     private let mazeSize: CGFloat = 300.0
@@ -83,6 +83,7 @@ struct ContentView: View {
         NavigationStack {
             ZStack {
                 // MARK: - AI 사용한 부분
+                
                 CameraPreviewView(session: cameraManager.session)
                     .ignoresSafeArea()
                     .blur(radius: isMazeButtonTapped ? 6 : 0)
@@ -232,7 +233,7 @@ struct ContentView: View {
             ProfileModalView(
                 imageName: "user_don",
                 name: "이돈혁",
-                nickName: "Donny"
+                nickname: "Donny"
             )
             .presentationDetents([.fraction(0.7)])
         }
@@ -249,6 +250,7 @@ struct ContentView: View {
 }
 
 // MARK: - AI 사용한 부분
+
 struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
     
