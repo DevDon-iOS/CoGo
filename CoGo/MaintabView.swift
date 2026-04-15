@@ -11,7 +11,7 @@ struct MaintabView: View {
     var body: some View {
         TabView() {
             Tab("Home", systemImage: "house") {
-                ContentView()
+                HomeView()
             }
             
             Tab("Collection", systemImage: "square.stack"){

@@ -1,5 +1,5 @@
 //
-//  ContentView.swift
+//  HomeView.swift
 //  CoGo
 //
 //  Created by 이돈혁 on 3/27/26.
@@ -8,8 +8,10 @@
 import SwiftUI
 import AVFoundation
 
-struct ContentView: View {
+struct HomeView: View {
     let cameraManager = CameraManager()
+    /// 주변 CoGo 기기 목록을 홈뷰에서 구독하기 위한 상태 객체
+    @StateObject private var nearbyDeviceManager = NearbyDeviceManager()
     /// 시트를 띄울지 말지 저장하는 상태값
     /// 값이 바뀌어야 하기 때문에 let이 아닌 var
     /// 기본상태는 false, 버튼을 누르면 true, 시트가 닫히면 다시 false
@@ -32,6 +34,74 @@ struct ContentView: View {
     private let playerDotSize: CGFloat = 10.0
     /// 도착 판정 오차범위
     private let goalTolerance: CGFloat = 0.02
+
+    /// 카메라 화면 위에 겹쳐 보여줄 주변 기기 패널
+    private var nearbyPeerSection: some View {
+        /// 제목, 상태 문구, 목록을 세로로 배치
+        VStack(alignment: .leading, spacing: 12) {
+            Text("내 주변 CoGo")
+                .font(.headline)
+                .foregroundStyle(.white)
+
+            /// 탐색 상태를 실시간으로 보여주는 문구
+            Text(nearbyDeviceManager.authorizationState)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.85))
+
+            /// 아직 발견한 기기가 없으면 안내 문구 표시
+            if nearbyDeviceManager.nearbyPeers.isEmpty {
+                Text("같은 네트워크 권한을 허용한 CoGo 사용자가 근처에 있으면 여기에 나타납니다.")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.85))
+            } else {
+                /// 여러 기기를 한 줄로 넘겨 보도록 가로 스크롤 사용
+                ScrollView(.horizontal, showsIndicators: false) {
+                    /// 각 기기 카드를 가로로 나열
+                    HStack(spacing: 12) {
+                        /// 발견한 기기 배열을 하나씩 순회
+                        ForEach(nearbyDeviceManager.nearbyPeers) { peer in
+                            /// 기기 카드 안의 원형 아이콘과 텍스트를 세로로 배치
+                            VStack(alignment: .leading, spacing: 8) {
+                                /// 프로필 이미지가 없으므로 기기 표시용 원형 배지 사용
+                                Circle()
+                                    .fill(Color.white.opacity(0.18))
+                                    .frame(width: 44, height: 44)
+                                    .overlay {
+                                        /// 기기 이름 첫 글자를 이니셜처럼 표시
+                                        Text(String(peer.displayName.prefix(1)).uppercased())
+                                            .font(.headline)
+                                            .foregroundStyle(.white)
+                                    }
+
+                                /// 발견한 기기의 이름 표시
+                                Text(peer.displayName)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+
+                                /// 마지막 발견 시각을 상대 시간 형식으로 표시
+                                Text(peer.lastSeenAt, style: .relative)
+                                    .font(.caption2)
+                                    .foregroundStyle(.white.opacity(0.72))
+                            }
+                            /// 카드 폭과 배경 스타일
+                            .frame(width: 132, alignment: .leading)
+                            .padding(12)
+                            .background(Color.black.opacity(0.32))
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        }
+                    }
+                }
+            }
+        }
+        /// 패널 전체 여백과 배경 스타일 지정
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.black.opacity(0.38))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+    }
 
     /// 빨간 점을 dx, dy만큼 움직이되 미로 밖으로 나가지 못하게 막는 함수
     private func movePlayer(dx: CGFloat, dy: CGFloat) {
@@ -109,6 +179,10 @@ struct ContentView: View {
                         }
                         .padding(24)
                     }
+                }
+                /// 홈뷰 상단 안전 영역 안에 주변 기기 패널 배치
+                .safeAreaInset(edge: .top) {
+                    nearbyPeerSection
                 }
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
@@ -228,6 +302,14 @@ struct ContentView: View {
                 }
             }
         }
+        /// 홈뷰가 나타나면 주변 기기 탐색 시작
+        .onAppear {
+            nearbyDeviceManager.start()
+        }
+        /// 홈뷰가 사라지면 불필요한 탐색 중단
+        .onDisappear {
+            nearbyDeviceManager.stop()
+        }
         /// 실제로 시트를 연결하는 줄
         .sheet(isPresented: $isProfileModalPresented) {
             ProfileModalView(
@@ -282,5 +364,5 @@ final class CameraPreviewUIView: UIView {
 // MARK: - preview
 
 #Preview {
-    ContentView()
+    HomeView()
 }
