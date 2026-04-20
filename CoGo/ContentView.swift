@@ -9,6 +9,8 @@ import SwiftUI
 import AVFoundation
 
 struct HomeView: View {
+    /// 앱 전역에서 저장하는 사용자 프로필 정보
+    @EnvironmentObject private var profileStore: ProfileStore
     let cameraManager = CameraManager()
     /// 주변 CoGo 기기 목록을 홈뷰에서 구독하기 위한 상태 객체
     @StateObject private var nearbyDeviceManager = NearbyDeviceManager()
@@ -312,11 +314,8 @@ struct HomeView: View {
         }
         /// 실제로 시트를 연결하는 줄
         .sheet(isPresented: $isProfileModalPresented) {
-            ProfileModalView(
-                imageName: "user_don",
-                name: "이돈혁",
-                nickname: "Donny"
-            )
+            ProfileModalView()
+                .environmentObject(profileStore)
             .presentationDetents([.fraction(0.7)])
         }
         .sheet(isPresented: $isBumpModalPresented) {

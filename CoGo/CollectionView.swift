@@ -183,11 +183,31 @@ struct CollectionView: View {
         }
         .ignoresSafeArea(.container, edges: .bottom)
         .sheet(item: $selectedProfile) { profile in
-            ProfileModalView(
-                imageName: profile.imageName,
-                name: profile.name,
-                nickname: profile.nickname
-                )
+            /// 컬렉션 버블은 현재 임시 더미 데이터 상세 시트로 유지
+            VStack(spacing: 16) {
+                Image(profile.imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 350, maxHeight: 350)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                Text(profile.name)
+                    .font(.title3.bold())
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
+
+                Text(profile.nickname)
+                    .font(.title3.bold())
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
+            }
+            .padding(.horizontal, 24)
                 .presentationDetents([.fraction(0.7)])
         }
     }

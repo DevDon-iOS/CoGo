@@ -6,40 +6,120 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct ProfileModalView: View {
-    
-    let imageName: String
-    let name: String
-    let nickname: String
-    
+    /// 앱 전역에 저장된 사용자 프로필
+    @EnvironmentObject private var profileStore: ProfileStore
+    /// 현재 시트를 닫기 위한 환경값
+    @Environment(\.dismiss) private var dismiss
+    /// 선택한 포토 피커 항목을 임시로 저장
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    /// 이름 입력 필드 상태값
+    @State private var name: String = ""
+    /// 닉네임 입력 필드 상태값
+    @State private var email: String = ""
+    /// 선택한 사진 데이터를 메모리에 보관
+    @State private var photoData: Data?
+
+    /// 저장 버튼을 눌렀을 때 활성화 가능한지 판단
+    private var isSaveButtonEnabled: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
         VStack(spacing: 16) {
-            Image(imageName)
-                .resizable()
-                /// 비율을 유지하며 최대한 맞춤
-                /// 가로 이미지 -> 가로 기준 맞춤
-                /// 세로 이미지 -> 세로 기준 맞춤
-                .scaledToFit()
-                /// 이미지 최대 크기 제한
-                .frame(maxWidth: 350, maxHeight: 350)
-                /// 이미지 모서리를 둥글게
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-            Text(name)
-                .font(.title3.bold())
-                .frame(maxWidth: .infinity, alignment: .center)
+            /// 프로필 사진을 선택하거나 현재 사진을 보여주는 영역
+            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                ZStack {
+                    /// 저장된 사진 데이터가 있으면 실제 이미지 표시
+                    if let uiImage = profileImage {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        /// 아직 사진이 없으면 기본 플레이스홀더 표시
+                        Circle()
+                            .fill(Color.gray.opacity(0.15))
+                            .overlay {
+                                Image(systemName: "person.crop.circle.fill.badge.plus")
+                                    .font(.system(size: 44))
+                                    .foregroundStyle(.gray)
+                            }
+                    }
+                }
+                .frame(width: 160, height: 160)
+                .clipShape(Circle())
+            }
+
+            /// 이름 입력 필드
+            TextField("이름을 입력하세요", text: $name)
+                .textInputAutocapitalization(.words)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(10)
-            Text(nickname)
-                .font(.title3.bold())
-                .frame(maxWidth: .infinity, alignment: .center)
+
+            /// 닉네임 입력 필드
+            TextField("닉네임을 입력하세요", text: $email)
+                .textInputAutocapitalization(.never)
+                .keyboardType(.emailAddress)
+                .autocorrectionDisabled()
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(10)
+
+            /// 저장 버튼
+            Button {
+                profileStore.saveProfile(name: name, email: email, photoData: photoData)
+                dismiss()
+            } label: {
+                Text("내 정보 저장")
+                    .foregroundColor(.white)
+                    .font(.body.bold())
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(isSaveButtonEnabled ? Color.blue : Color.gray)
+                    .cornerRadius(12)
+            }
+            .disabled(!isSaveButtonEnabled)
+
+            /// 입력값을 모두 비우는 초기화 버튼
+            Button {
+                profileStore.resetProfile()
+                syncForm(with: .empty)
+            } label: {
+                Text("초기화")
+                    .foregroundStyle(.red)
+            }
         }
         .padding(.horizontal, 24)
+        /// 시트가 처음 열릴 때 저장된 프로필을 입력창에 반영
+        .onAppear {
+            syncForm(with: profileStore.profile)
+        }
+        /// 사용자가 새 사진을 고르면 Data로 읽어옴
+        .onChange(of: selectedPhotoItem) { _, newItem in
+            Task {
+                photoData = try? await newItem?.loadTransferable(type: Data.self)
+            }
+        }
+    }
+}
+
+private extension ProfileModalView {
+    /// 현재 photoData를 실제 UIImage로 바꿔주는 계산 프로퍼티
+    var profileImage: UIImage? {
+        guard let photoData else { return nil }
+        return UIImage(data: photoData)
+    }
+
+    /// 저장소의 프로필 값을 입력 폼 상태값에 복사
+    func syncForm(with profile: Profile) {
+        name = profile.name
+        email = profile.email
+        photoData = profile.photoData
     }
 }
