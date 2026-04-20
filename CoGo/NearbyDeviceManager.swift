@@ -1,3 +1,10 @@
+//
+//  NearbyDeviceManager.swift
+//  CoGo
+//
+//  Created by 이돈혁 on 4/15/26.
+//
+
 import Foundation
 import Combine
 import MultipeerConnectivity
@@ -9,7 +16,7 @@ struct NearbyPeer: Identifiable, Equatable {
     let id: MCPeerID
     /// 화면에 보여줄 상대 기기의 표시 이름
     let displayName: String
-    /// 광고 단계에서 함께 전달받은 부가 정보
+    /// advertise 단계에서 함께 전달받은 부가 정보
     let discoveryInfo: [String: String]
     /// 마지막으로 이 기기를 발견한 시각
     let lastSeenAt: Date
@@ -27,27 +34,31 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
 
     /// 현재 내 기기를 나타내는 피어 아이디
     private let myPeerID: MCPeerID
-    /// 내 기기를 주변에 광고하는 객체
+    /// 내 기기를 주변에 advertise하는 객체
     private let advertiser: MCNearbyServiceAdvertiser
-    /// 주변에서 같은 서비스를 광고하는 기기를 찾는 객체
+    /// 주변에서 같은 서비스를 advertise하는 기기를 찾는 객체
     private let browser: MCNearbyServiceBrowser
 
-    /// 앱이 매니저를 만들 때 광고와 탐색 객체를 함께 초기화
+    /// 앱이 매니저를 만들 때 advertise와 탐색 객체를 함께 초기화
     override init() {
         /// 현재 아이폰 이름을 피어 표시 이름으로 사용
         let displayName = UIDevice.current.name
         /// MultipeerConnectivity용 피어 아이디 생성
         let peerID = MCPeerID(displayName: displayName)
-        /// 브라우저가 바로 표시할 수 있도록 간단한 정보를 광고에 포함
+        /// 브라우저가 바로 표시할 수 있도록 간단한 정보를 advertise에 포함
         let discoveryInfo = ["displayName": displayName]
 
+        /// 위에서 만든 peerID를 내 기기 식별값 프로퍼티에 저장
         self.myPeerID = peerID
+        /// 내 기기를 주변에 advertise할 객체 생성
         self.advertiser = MCNearbyServiceAdvertiser(peer: peerID, discoveryInfo: discoveryInfo, serviceType: Self.serviceType)
+        /// 주변에서 같은 serviceType을 쓰는 기기를 찾을 객체 생성
         self.browser = MCNearbyServiceBrowser(peer: peerID, serviceType: Self.serviceType)
 
+        /// NSObject를 상속받고 있으므로 부모 초기화를 먼저 완료
         super.init()
 
-        /// 초대나 광고 에러를 받을 delegate 지정
+        /// 초대나 advertise 에러를 받을 delegate 지정
         advertiser.delegate = self
         /// 탐색 결과와 탐색 에러를 받을 delegate 지정
         browser.delegate = self
@@ -73,7 +84,7 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
 
     /// 새 기기를 추가하거나 기존 기기 정보를 갱신하는 메서드
     private func upsertPeer(_ peerID: MCPeerID, discoveryInfo: [String: String]?) {
-        /// 광고 정보가 있으면 그 값을, 없으면 피어 기본 이름 사용
+        /// advertise 정보가 있으면 그 값을, 없으면 피어 기본 이름 사용
         let displayName = discoveryInfo?["displayName"] ?? peerID.displayName
         /// 현재 시각 기준으로 모델 생성
         let peer = NearbyPeer(id: peerID, displayName: displayName, discoveryInfo: discoveryInfo ?? [:], lastSeenAt: Date())
@@ -126,7 +137,7 @@ extension NearbyDeviceManager: MCNearbyServiceBrowserDelegate {
     }
 }
 
-/// 광고 관련 이벤트를 처리하기 위한 advertiser delegate 구현
+/// advertise 관련 이벤트를 처리하기 위한 advertiser delegate 구현
 extension NearbyDeviceManager: MCNearbyServiceAdvertiserDelegate {
     /// 다른 기기에서 세션 초대를 보냈을 때 호출
     func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didReceiveInvitationFromPeer peerID: MCPeerID, withContext context: Data?, invitationHandler: @escaping (Bool, MCSession?) -> Void) {
@@ -134,10 +145,10 @@ extension NearbyDeviceManager: MCNearbyServiceAdvertiserDelegate {
         invitationHandler(false, nil)
     }
 
-    /// 광고 시작 자체가 실패했을 때 호출
+    /// advertise 시작 자체가 실패했을 때 호출
     func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didNotStartAdvertisingPeer error: any Error) {
         DispatchQueue.main.async {
-            self.authorizationState = "광고 시작 실패: \(error.localizedDescription)"
+            self.authorizationState = "advertise 시작 실패: \(error.localizedDescription)"
         }
     }
 }
