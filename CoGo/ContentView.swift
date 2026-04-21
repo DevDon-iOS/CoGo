@@ -39,66 +39,32 @@ struct HomeView: View {
     /// 도착 판정 오차범위
     private let goalTolerance: CGFloat = 0.02
 
-    /// 카메라 화면 위에 겹쳐 보여줄 주변 기기 패널
+    /// 카메라 화면 위에 겹쳐 보여줄 주변 기기 목록
     private var nearbyPeerSection: some View {
-        /// 제목, 상태 문구, 목록을 세로로 배치
-        VStack(alignment: .leading, spacing: 12) {
-            Text("내 주변 CoGo")
-                .font(.headline)
-                .foregroundStyle(.white)
+        /// 패널 배경 없이 프로필 원만 가로로 배치
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+                ForEach(nearbyDeviceManager.nearbyPeers) { peer in
+                    Button {
+                        selectedPeerForInvite = peer
+                    } label: {
+                        VStack(spacing: 8) {
+                            NearbyPeerAvatarView(peer: peer)
 
-            /// 탐색 상태를 실시간으로 보여주는 문구
-            Text(nearbyDeviceManager.authorizationState)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.85))
-
-            /// 아직 발견한 기기가 없으면 안내 문구 표시
-            if nearbyDeviceManager.nearbyPeers.isEmpty {
-                Text("같은 네트워크 권한을 허용한 CoGo 사용자가 근처에 있으면 여기에 나타납니다.")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.85))
-            } else {
-                /// 여러 기기를 한 줄로 넘겨 보도록 가로 스크롤 사용
-                ScrollView(.horizontal, showsIndicators: false) {
-                    /// 각 기기 카드를 가로로 나열
-                    HStack(spacing: 12) {
-                        /// 발견한 기기 배열을 하나씩 순회
-                        ForEach(nearbyDeviceManager.nearbyPeers) { peer in
-                            /// 원형 프로필 사진과 닉네임을 카드처럼 배치
-                            Button {
-                                selectedPeerForInvite = peer
-                            } label: {
-                                VStack(spacing: 8) {
-                                    NearbyPeerAvatarView(peer: peer)
-
-                                    Text(peer.nickname)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(.white)
-                                        .lineLimit(1)
-
-                                    Text(peer.lastSeenAt, style: .relative)
-                                        .font(.caption2)
-                                        .foregroundStyle(.white.opacity(0.72))
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            /// 카드 폭과 배경 스타일
-                            .frame(width: 96)
-                            .padding(12)
-                            .background(Color.black.opacity(0.32))
-                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            Text(peer.nickname)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
                         }
+                        .frame(width: 82)
                     }
+                    .buttonStyle(.plain)
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
         }
-        /// 패널 전체 여백과 배경 스타일 지정
-        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.black.opacity(0.38))
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
     }
 
     /// 빨간 점을 dx, dy만큼 움직이되 미로 밖으로 나가지 못하게 막는 함수
@@ -401,22 +367,47 @@ private struct NearbyPeerAvatarView: View {
     let peer: NearbyPeer
 
     var body: some View {
-        Group {
+        ZStack {
+            /// 유리 느낌이 나도록 반투명 material 바탕 추가
+            Circle()
+                .fill(.ultraThinMaterial)
+
+            /// 상단 좌측에 들어오는 빛처럼 보이도록 하이라이트 레이어 추가
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.42),
+                            Color.white.opacity(0.14),
+                            Color.clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .blur(radius: 4)
+                .scaleEffect(0.92)
+
             if let uiImage = avatarImage {
                 Image(uiImage: uiImage)
                     .resizable()
                     .scaledToFill()
+                    .clipShape(Circle())
+                    .padding(6)
             } else {
-                Circle()
-                    .fill(Color.white.opacity(0.18))
-                    .overlay {
-                        Text(String(peer.nickname.prefix(1)).uppercased())
-                            .font(.title3.bold())
-                            .foregroundStyle(.white)
-                    }
+                Text(String(peer.nickname.prefix(1)).uppercased())
+                    .font(.title3.bold())
+                    .foregroundStyle(.white)
             }
         }
         .frame(width: 75, height: 75)
+        /// 스크린샷처럼 밝은 외곽선으로 유리 경계 강조
+        .overlay {
+            Circle()
+                .stroke(Color.white.opacity(0.34), lineWidth: 1)
+        }
+        /// 바깥쪽 그림자를 약하게 넣어 배경에서 살짝 뜨게 처리
+        .shadow(color: Color.black.opacity(0.16), radius: 12, x: 0, y: 6)
         .clipShape(Circle())
     }
 
