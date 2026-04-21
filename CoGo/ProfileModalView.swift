@@ -18,14 +18,14 @@ struct ProfileModalView: View {
     /// 이름 입력 필드 상태값
     @State private var name: String = ""
     /// 닉네임 입력 필드 상태값
-    @State private var email: String = ""
+    @State private var nickname: String = ""
     /// 선택한 사진 데이터를 메모리에 보관
     @State private var photoData: Data?
 
     /// 저장 버튼을 눌렀을 때 활성화 가능한지 판단
     private var isSaveButtonEnabled: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        && !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && !nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -62,9 +62,8 @@ struct ProfileModalView: View {
                 .cornerRadius(10)
 
             /// 닉네임 입력 필드
-            TextField("닉네임을 입력하세요", text: $email)
+            TextField("닉네임을 입력하세요", text: $nickname)
                 .textInputAutocapitalization(.never)
-                .keyboardType(.emailAddress)
                 .autocorrectionDisabled()
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -73,7 +72,7 @@ struct ProfileModalView: View {
 
             /// 저장 버튼
             Button {
-                profileStore.saveProfile(name: name, email: email, photoData: photoData)
+                profileStore.saveProfile(name: name, nickname: nickname, photoData: photoData)
                 dismiss()
             } label: {
                 Text("내 정보 저장")
@@ -119,7 +118,7 @@ private extension ProfileModalView {
     /// 저장소의 프로필 값을 입력 폼 상태값에 복사
     func syncForm(with profile: Profile) {
         name = profile.name
-        email = profile.email
+        nickname = profile.nickname
         photoData = profile.photoData
     }
 }

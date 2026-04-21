@@ -22,13 +22,13 @@ final class ProfileStore: ObservableObject {
     }
 
     /// 이름, 닉네임, 사진을 한 번에 저장하는 메서드
-    func saveProfile(name: String, email: String, photoData: Data?) {
+    func saveProfile(name: String, nickname: String, photoData: Data?) {
         /// 공백만 입력한 경우를 막기 위해 앞뒤 공백 제거
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         /// 닉네임도 같은 방식으로 정리
-        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         /// 최신 입력값으로 새 프로필 생성
-        let updatedProfile = Profile(id: profile.id, name: trimmedName, email: trimmedEmail, photoData: photoData)
+        let updatedProfile = Profile(id: profile.id, name: trimmedName, nickname: trimmedNickname, photoData: photoData)
 
         profile = updatedProfile
         persist(updatedProfile)

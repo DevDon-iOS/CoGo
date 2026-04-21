@@ -14,6 +14,8 @@ struct HomeView: View {
     let cameraManager = CameraManager()
     /// 주변 CoGo 기기 목록을 홈뷰에서 구독하기 위한 상태 객체
     @StateObject private var nearbyDeviceManager = NearbyDeviceManager()
+    /// 내가 초대 보낼 상대 기기를 잠시 저장
+    @State private var selectedPeerForInvite: NearbyPeer?
     /// 시트를 띄울지 말지 저장하는 상태값
     /// 값이 바뀌어야 하기 때문에 let이 아닌 var
     /// 기본상태는 false, 버튼을 누르면 true, 시트가 닫히면 다시 false
@@ -62,32 +64,26 @@ struct HomeView: View {
                     HStack(spacing: 12) {
                         /// 발견한 기기 배열을 하나씩 순회
                         ForEach(nearbyDeviceManager.nearbyPeers) { peer in
-                            /// 기기 카드 안의 원형 아이콘과 텍스트를 세로로 배치
-                            VStack(alignment: .leading, spacing: 8) {
-                                /// 프로필 이미지가 없으므로 기기 표시용 원형 배지 사용
-                                Circle()
-                                    .fill(Color.white.opacity(0.18))
-                                    .frame(width: 44, height: 44)
-                                    .overlay {
-                                        /// 기기 이름 첫 글자를 이니셜처럼 표시
-                                        Text(String(peer.displayName.prefix(1)).uppercased())
-                                            .font(.headline)
-                                            .foregroundStyle(.white)
-                                    }
+                            /// 원형 프로필 사진과 닉네임을 카드처럼 배치
+                            Button {
+                                selectedPeerForInvite = peer
+                            } label: {
+                                VStack(spacing: 8) {
+                                    NearbyPeerAvatarView(peer: peer)
 
-                                /// 발견한 기기의 이름 표시
-                                Text(peer.displayName)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .lineLimit(1)
+                                    Text(peer.nickname)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.white)
+                                        .lineLimit(1)
 
-                                /// 마지막 발견 시각을 상대 시간 형식으로 표시
-                                Text(peer.lastSeenAt, style: .relative)
-                                    .font(.caption2)
-                                    .foregroundStyle(.white.opacity(0.72))
+                                    Text(peer.lastSeenAt, style: .relative)
+                                        .font(.caption2)
+                                        .foregroundStyle(.white.opacity(0.72))
+                                }
                             }
+                            .buttonStyle(.plain)
                             /// 카드 폭과 배경 스타일
-                            .frame(width: 132, alignment: .leading)
+                            .frame(width: 96)
                             .padding(12)
                             .background(Color.black.opacity(0.32))
                             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -196,7 +192,7 @@ struct HomeView: View {
                     }
                 }
                 
-                /// 미로 생성 버튼이 눌리면 버튼이 보이지 않도
+                /// 미로 생성 버튼이 눌리면 버튼이 보이지 않도록
                 if isMazeButtonTapped {
                     Color.black.opacity(0.18)
                         .ignoresSafeArea()
@@ -306,11 +302,46 @@ struct HomeView: View {
         }
         /// 홈뷰가 나타나면 주변 기기 탐색 시작
         .onAppear {
+            nearbyDeviceManager.updateLocalProfile(profileStore.profile)
             nearbyDeviceManager.start()
+        }
+        /// 프로필이 바뀌면 주변에 알리는 정보도 함께 갱신
+        .onChange(of: profileStore.profile) { _, newProfile in
+            nearbyDeviceManager.updateLocalProfile(newProfile)
+        }
+        /// 세션 연결이 완료되면 양쪽 기기 모두 미로 표시
+        .onChange(of: nearbyDeviceManager.isGameReady) { _, isGameReady in
+            guard isGameReady else { return }
+            isMazeButtonTapped = true
+            isBumpModalPresented = false
+            playerXRatio = 155.0 / 300.0
+            playerYRatio = 291.0 / 300.0
+            nearbyDeviceManager.consumeGameReady()
         }
         /// 홈뷰가 사라지면 불필요한 탐색 중단
         .onDisappear {
             nearbyDeviceManager.stop()
+        }
+        /// 내가 상대를 눌렀을 때 보여줄 CoGo 초대 alert
+        .alert("함께 CoGo를 플레이할까요?", isPresented: inviteAlertBinding, presenting: selectedPeerForInvite) { peer in
+            Button("아니오", role: .cancel) {
+                selectedPeerForInvite = nil
+            }
+            Button("예") {
+                nearbyDeviceManager.invite(peer)
+                selectedPeerForInvite = nil
+            }
+        } message: { peer in
+            Text("\(peer.nickname)에게 CoGo 초대를 보냅니다.")
+        }
+        /// 상대가 보낸 CoGo 초대를 수락할지 묻는 alert
+        .alert(incomingInviteTitle, isPresented: incomingInviteAlertBinding) {
+            Button("아니오", role: .cancel) {
+                nearbyDeviceManager.declinePendingInvite()
+            }
+            Button("예") {
+                nearbyDeviceManager.acceptPendingInvite()
+            }
         }
         /// 실제로 시트를 연결하는 줄
         .sheet(isPresented: $isProfileModalPresented) {
@@ -327,6 +358,72 @@ struct HomeView: View {
             /// 잡고 드래그할 수 있는 인디케이터
             .presentationDragIndicator(.visible)
         }
+    }
+}
+
+private extension HomeView {
+    /// 내가 상대를 눌렀을 때 alert를 띄우기 위한 바인딩
+    var inviteAlertBinding: Binding<Bool> {
+        Binding(
+            get: { selectedPeerForInvite != nil },
+            set: { isPresented in
+                if !isPresented {
+                    selectedPeerForInvite = nil
+                }
+            }
+        )
+    }
+
+    /// 상대에게 받은 초대 alert를 띄우기 위한 바인딩
+    var incomingInviteAlertBinding: Binding<Bool> {
+        Binding(
+            get: { nearbyDeviceManager.pendingInvite != nil },
+            set: { isPresented in
+                if !isPresented, nearbyDeviceManager.pendingInvite != nil {
+                    nearbyDeviceManager.declinePendingInvite()
+                }
+            }
+        )
+    }
+
+    /// 상대가 보낸 초대 alert 제목 문구
+    var incomingInviteTitle: String {
+        guard let pendingInvite = nearbyDeviceManager.pendingInvite else {
+            return ""
+        }
+        return "\(pendingInvite.hostNickname) 과 CoGo를 플레이할까요?"
+    }
+}
+
+/// 근처 상대 기기를 원형 프로필 사진으로 보여주는 뷰
+private struct NearbyPeerAvatarView: View {
+    /// 표시할 주변 기기 정보
+    let peer: NearbyPeer
+
+    var body: some View {
+        Group {
+            if let uiImage = avatarImage {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Circle()
+                    .fill(Color.white.opacity(0.18))
+                    .overlay {
+                        Text(String(peer.nickname.prefix(1)).uppercased())
+                            .font(.title3.bold())
+                            .foregroundStyle(.white)
+                    }
+            }
+        }
+        .frame(width: 75, height: 75)
+        .clipShape(Circle())
+    }
+
+    /// Data를 실제 UIImage로 바꾸는 계산 프로퍼티
+    private var avatarImage: UIImage? {
+        guard let photoData = peer.photoData else { return nil }
+        return UIImage(data: photoData)
     }
 }
 
