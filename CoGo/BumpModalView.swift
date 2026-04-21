@@ -18,20 +18,6 @@ struct BumpModalView: View {
             Text("네임드랍으로 연락처를 공유하세요")
                 .font(.title3)
                 .multilineTextAlignment(.center)
-            
-            Button {
-                onConfirm()
-                
-            } label: {
-                Text("네임드랍 했다고 치는 버튼")
-                    .foregroundColor(.white)
-                    .font(Font.body.bold())
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(10)
-                    .padding(.top, 28)
-            }
         }
     }
 }
