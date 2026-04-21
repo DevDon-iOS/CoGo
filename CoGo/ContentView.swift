@@ -12,6 +12,8 @@ import Combine
 struct HomeView: View {
     /// 앱 전역에서 저장하는 사용자 프로필 정보
     @EnvironmentObject private var profileStore: ProfileStore
+    /// 컬렉션 첫 원에 반영할 친구 정보를 저장하는 저장소
+    @EnvironmentObject private var collectedFriendStore: CollectedFriendStore
     let cameraManager = CameraManager()
     /// 주변 CoGo 기기 목록을 홈뷰에서 구독하기 위한 상태 객체
     @StateObject private var nearbyDeviceManager = NearbyDeviceManager()
@@ -95,6 +97,14 @@ struct HomeView: View {
         if isGoalXMatched && isGoalYMatched {
             /// 길게 누르는 도중 도착했으면 타이머가 켜져있을 수 있으니 도착 즉시 반복입력 중단
             stopRepeatingMove()
+            if let activePeer = nearbyDeviceManager.activePeer {
+                collectedFriendStore.saveFirstCollectedFriend(
+                    CollectedFriend(
+                        nickname: activePeer.nickname,
+                        photoData: activePeer.photoData
+                    )
+                )
+            }
             isBumpModalPresented = true
         }
     }

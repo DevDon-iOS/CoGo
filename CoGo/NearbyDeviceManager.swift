@@ -84,6 +84,8 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
     @Published private(set) var playerRole: CoGoPlayerRole?
     /// 상대 기기에서 방금 받은 이동 명령 이벤트
     @Published private(set) var latestMoveEvent: MazeMoveEvent?
+    /// 현재 CoGo를 함께 플레이 중인 상대 정보
+    @Published private(set) var activePeer: NearbyPeer?
 
     /// 같은 앱끼리만 찾도록 고정된 Bonjour 서비스 타입
     private static let serviceType = "cogo-nearby"
@@ -146,6 +148,7 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
         isRunning = true
         isGameReady = false
         playerRole = nil
+        activePeer = nil
         authorizationState = "주변 CoGo 기기 탐색 중"
         advertiser.startAdvertisingPeer()
         browser.startBrowsingForPeers()
@@ -158,6 +161,7 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
         browser.stopBrowsingForPeers()
         session.disconnect()
         playerRole = nil
+        activePeer = nil
     }
 
     /// 홈뷰에서 상대 기기를 눌렀을 때 CoGo 초대를 보내는 메서드
@@ -169,6 +173,7 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
 
         authorizationState = "\(peer.nickname)에게 CoGo 초대를 보내는 중"
         playerRole = .host
+        activePeer = peer
         browser.invitePeer(peer.id, to: session, withContext: context, timeout: 15)
     }
 
@@ -177,6 +182,7 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
         guard let pendingInvite else { return }
         authorizationState = "\(pendingInvite.hostNickname)와 연결 중"
         playerRole = .guest
+        activePeer = nearbyPeers.first(where: { $0.id == pendingInvite.peerID })
         pendingInvite.invitationHandler(true, session)
         self.pendingInvite = nil
     }
@@ -187,6 +193,7 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
         pendingInvite.invitationHandler(false, nil)
         self.pendingInvite = nil
         playerRole = nil
+        activePeer = nil
         authorizationState = "주변 CoGo 기기 탐색 중"
     }
 
@@ -377,12 +384,16 @@ extension NearbyDeviceManager: MCSessionDelegate {
         DispatchQueue.main.async {
             switch state {
             case .connected:
+                if self.activePeer == nil {
+                    self.activePeer = self.nearbyPeers.first(where: { $0.id == peerID })
+                }
                 self.authorizationState = "\(peerID.displayName)와 CoGo 연결 완료"
                 self.isGameReady = true
             case .connecting:
                 self.authorizationState = "\(peerID.displayName)와 연결 중"
             case .notConnected:
                 self.playerRole = nil
+                self.activePeer = nil
                 self.authorizationState = "주변 CoGo 기기 탐색 중"
             @unknown default:
                 self.authorizationState = "연결 상태를 확인하는 중"

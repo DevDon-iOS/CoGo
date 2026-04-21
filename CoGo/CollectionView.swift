@@ -8,7 +8,9 @@
 import SwiftUI
 
 struct CollectionView: View {
-//    // 드래그 상태값(드래그 이동의 핵심)
+    /// 미로를 함께 푼 친구 정보를 읽어오는 전역 저장소
+    @EnvironmentObject private var collectedFriendStore: CollectedFriendStore
+    //    // 드래그 상태값(드래그 이동의 핵심)
 //    /// @State는 SwiftUI 뷰 내부에서 값이 바뀌고 그 값이 바뀌면 화면도 다시 그려져야 할 때 사용
 //    /// accumulatedOffset은 드래그가 끝난 뒤 최종 누적 위치
 //    @State private var accumulatedOffset: CGSize = .zero
@@ -48,20 +50,27 @@ struct CollectionView: View {
         GeometryReader { _ in
             ZStack {
                 /// 앱의 초기 상태에서는 화면 가운데 검은 원 하나만 표시
-                Circle()
-                    .fill(Color.black)
-                    /// spread 값을 완전히 같게 만들 수는 없어서 바깥 링을 얇게 추가해 비슷한 두께감 보정
-                    .overlay {
-                        Circle()
-                            .stroke(Color.black.opacity(0.08), lineWidth: 8)
-                            .blur(radius: 1)
-                    }
-                    .frame(width: centerCircleSize, height: centerCircleSize)
-                    /// Figma 값 기준: x 0, y 5, blur 10, color #000000 27%
-                    .shadow(color: Color.black.opacity(0.27), radius: 10, x: 0, y: 5)
-                    .onTapGesture {
-                        isIntroSheetPresented = true
-                    }
+                if let collectedFriend = collectedFriendStore.firstCollectedFriend {
+                    CollectionBubbleView(
+                        friend: collectedFriend,
+                        size: centerCircleSize
+                    )
+                } else {
+                    Circle()
+                        .fill(Color.black)
+                        /// spread 값을 완전히 같게 만들 수는 없어서 바깥 링을 얇게 추가해 비슷한 두께감 보정
+                        .overlay {
+                            Circle()
+                                .stroke(Color.black.opacity(0.08), lineWidth: 8)
+                                .blur(radius: 1)
+                        }
+                        .frame(width: centerCircleSize, height: centerCircleSize)
+                        /// Figma 값 기준: x 0, y 5, blur 10, color #000000 27%
+                        .shadow(color: Color.black.opacity(0.27), radius: 10, x: 0, y: 5)
+                        .onTapGesture {
+                            isIntroSheetPresented = true
+                        }
+                }
             }
 //            /// 검은 원이 손가락 움직임에 따라 같이 반응
 //            .offset(
@@ -120,6 +129,40 @@ struct CollectionView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .presentationDetents([.fraction(0.3)])
         }
+    }
+}
+
+private struct CollectionBubbleView: View {
+    /// 컬렉션에 표시할 친구 정보
+    let friend: CollectedFriend
+    /// 원형 버블 크기
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.black)
+
+            if let uiImage = friendImage {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: size, height: size)
+                    .clipShape(Circle())
+            } else {
+                Text(String(friend.nickname.prefix(1)).uppercased())
+                    .font(.system(size: 44, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+        }
+        .frame(width: size, height: size)
+        .shadow(color: Color.black.opacity(0.27), radius: 10, x: 0, y: 5)
+    }
+
+    /// 저장된 사진 데이터를 UIImage로 변환
+    private var friendImage: UIImage? {
+        guard let photoData = friend.photoData else { return nil }
+        return UIImage(data: photoData)
     }
 }
 
