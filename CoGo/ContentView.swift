@@ -121,29 +121,6 @@ struct HomeView: View {
                 CameraPreviewView(session: cameraManager.session)
                     .ignoresSafeArea()
                     .blur(radius: isMazeButtonTapped ? 6 : 0)
-                
-                VStack {
-                    Spacer()
-                    
-                    if !isMazeButtonTapped {
-                        Button {
-                            isMazeButtonTapped = true
-                            isBumpModalPresented = false
-                            playerXRatio = 155.0/300.0
-                            playerYRatio = 291.0/300.0
-                            
-                        } label: {
-                            Text("랜덤 미로 생성")
-                                .font(Font.body.bold())
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.blue)
-                                .cornerRadius(10)
-                                .padding(.top, 28)
-                        }
-                        .padding(24)
-                    }
-                }
                 /// 홈뷰 상단 안전 영역 안에 주변 기기 패널 배치
                 .safeAreaInset(edge: .top) {
                     nearbyPeerSection
