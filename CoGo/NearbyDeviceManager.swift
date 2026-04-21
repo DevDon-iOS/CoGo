@@ -42,6 +42,14 @@ struct PendingGameInvite: Identifiable {
     let invitationHandler: (Bool, MCSession?) -> Void
 }
 
+/// CoGo 미로에서 각 기기가 맡는 조작 역할
+enum CoGoPlayerRole {
+    /// 초대를 보낸 사람은 좌우 조작 담당
+    case host
+    /// 초대를 받은 사람은 상하 조작 담당
+    case guest
+}
+
 /// SwiftUI와 MultipeerConnectivity delegate를 함께 쓰기 위한 매니저 클래스
 final class NearbyDeviceManager: NSObject, ObservableObject {
     /// 홈뷰가 구독할 주변 기기 목록
@@ -52,6 +60,8 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
     @Published var pendingInvite: PendingGameInvite?
     /// 두 기기 연결이 끝나 미로를 보여줘야 하는지 여부
     @Published private(set) var isGameReady = false
+    /// 현재 기기가 맡은 미로 조작 역할
+    @Published private(set) var playerRole: CoGoPlayerRole?
 
     /// 같은 앱끼리만 찾도록 고정된 Bonjour 서비스 타입
     private static let serviceType = "cogo-nearby"
@@ -113,6 +123,7 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
         guard !isRunning else { return }
         isRunning = true
         isGameReady = false
+        playerRole = nil
         authorizationState = "주변 CoGo 기기 탐색 중"
         advertiser.startAdvertisingPeer()
         browser.startBrowsingForPeers()
@@ -124,6 +135,7 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
         advertiser.stopAdvertisingPeer()
         browser.stopBrowsingForPeers()
         session.disconnect()
+        playerRole = nil
     }
 
     /// 홈뷰에서 상대 기기를 눌렀을 때 CoGo 초대를 보내는 메서드
@@ -134,6 +146,7 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
         let context = try? JSONEncoder().encode(GameInviteContext(hostNickname: hostNickname))
 
         authorizationState = "\(peer.nickname)에게 CoGo 초대를 보내는 중"
+        playerRole = .host
         browser.invitePeer(peer.id, to: session, withContext: context, timeout: 15)
     }
 
@@ -141,6 +154,7 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
     func acceptPendingInvite() {
         guard let pendingInvite else { return }
         authorizationState = "\(pendingInvite.hostNickname)와 연결 중"
+        playerRole = .guest
         pendingInvite.invitationHandler(true, session)
         self.pendingInvite = nil
     }
@@ -150,6 +164,7 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
         guard let pendingInvite else { return }
         pendingInvite.invitationHandler(false, nil)
         self.pendingInvite = nil
+        playerRole = nil
         authorizationState = "주변 CoGo 기기 탐색 중"
     }
 
@@ -329,6 +344,7 @@ extension NearbyDeviceManager: MCSessionDelegate {
             case .connecting:
                 self.authorizationState = "\(peerID.displayName)와 연결 중"
             case .notConnected:
+                self.playerRole = nil
                 self.authorizationState = "주변 CoGo 기기 탐색 중"
             @unknown default:
                 self.authorizationState = "연결 상태를 확인하는 중"

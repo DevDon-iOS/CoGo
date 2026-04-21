@@ -177,62 +177,52 @@ struct HomeView: View {
                         .frame(width: mazeSize, height: mazeSize)
                         .padding(.bottom, 40)
                         
-                        HStack(spacing: 24) {
-                            Button {
-                                movePlayer(dx: -step, dy: 0)
-                            } label: {
-                                Image(systemName: "arrow.left.circle.fill")
-                                    .font(.system(size: 36))
-                            }
-                            .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
-                                if isPressing {
-                                    startRepeatingMove(dx: -1, dy: 0, step: step)
-                                } else {
-                                    stopRepeatingMove()
+                        HStack(spacing: 28) {
+                            if nearbyDeviceManager.playerRole == .host {
+                                MazeControlButton(systemName: "arrow.left", size: 80) {
+                                    movePlayer(dx: -step, dy: 0)
                                 }
-                            }, perform: {})
-                            
-                            Button {
-                                movePlayer(dx: step, dy: 0)
-                            } label: {
-                                Image(systemName: "arrow.right.circle.fill")
-                                    .font(.system(size: 36))
-                            }
-                            .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
-                                if isPressing {
-                                    startRepeatingMove(dx: 1, dy: 0, step: step)
-                                } else {
-                                    stopRepeatingMove()
+                                .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
+                                    if isPressing {
+                                        startRepeatingMove(dx: -1, dy: 0, step: step)
+                                    } else {
+                                        stopRepeatingMove()
+                                    }
+                                }, perform: {})
+
+                                MazeControlButton(systemName: "arrow.right", size: 80) {
+                                    movePlayer(dx: step, dy: 0)
                                 }
-                            }, perform: {})
-                            
-                            Button {
-                                movePlayer(dx: 0, dy: -step)
-                            } label: {
-                                Image(systemName: "arrow.up.circle.fill")
-                                    .font(.system(size: 36))
-                            }
-                            .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
-                                if isPressing {
-                                    startRepeatingMove(dx: 0, dy: -1, step: step)
-                                } else {
-                                    stopRepeatingMove()
+                                .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
+                                    if isPressing {
+                                        startRepeatingMove(dx: 1, dy: 0, step: step)
+                                    } else {
+                                        stopRepeatingMove()
+                                    }
+                                }, perform: {})
+                            } else if nearbyDeviceManager.playerRole == .guest {
+                                MazeControlButton(systemName: "arrow.up", size: 80) {
+                                    movePlayer(dx: 0, dy: -step)
                                 }
-                            }, perform: {})
-                            
-                            Button {
-                                movePlayer(dx: 0, dy: step)
-                            } label: {
-                                Image(systemName: "arrow.down.circle.fill")
-                                    .font(.system(size: 36))
-                            }
-                            .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
-                                if isPressing {
-                                    startRepeatingMove(dx: 0, dy: 1, step: step)
-                                } else {
-                                    stopRepeatingMove()
+                                .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
+                                    if isPressing {
+                                        startRepeatingMove(dx: 0, dy: -1, step: step)
+                                    } else {
+                                        stopRepeatingMove()
+                                    }
+                                }, perform: {})
+
+                                MazeControlButton(systemName: "arrow.down", size: 80) {
+                                    movePlayer(dx: 0, dy: step)
                                 }
-                            }, perform: {})
+                                .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
+                                    if isPressing {
+                                        startRepeatingMove(dx: 0, dy: 1, step: step)
+                                    } else {
+                                        stopRepeatingMove()
+                                    }
+                                }, perform: {})
+                            }
                         }
                     }
                     .padding(24)
@@ -301,6 +291,50 @@ struct HomeView: View {
             /// 잡고 드래그할 수 있는 인디케이터
             .presentationDragIndicator(.visible)
         }
+    }
+}
+
+private struct MazeControlButton: View {
+    /// 버튼 안에 들어갈 화살표 SF Symbol 이름
+    let systemName: String
+    /// 버튼의 지름
+    let size: CGFloat
+    /// 버튼 탭 시 실행할 동작
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.42),
+                                Color.white.opacity(0.16),
+                                Color.clear
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .blur(radius: 4)
+                    .scaleEffect(0.92)
+
+                Image(systemName: systemName)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: size, height: size)
+            .overlay {
+                Circle()
+                    .stroke(Color.white.opacity(0.34), lineWidth: 1)
+            }
+            .shadow(color: Color.black.opacity(0.16), radius: 12, x: 0, y: 6)
+        }
+        .buttonStyle(.plain)
     }
 }
 
