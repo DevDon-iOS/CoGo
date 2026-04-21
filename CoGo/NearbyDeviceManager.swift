@@ -50,6 +50,26 @@ enum CoGoPlayerRole {
     case guest
 }
 
+/// 두 기기 사이에 주고받을 미로 이동 명령
+enum MazeMoveCommand: String, Codable {
+    /// 빨간 점을 왼쪽으로 이동
+    case left
+    /// 빨간 점을 오른쪽으로 이동
+    case right
+    /// 빨간 점을 위로 이동
+    case up
+    /// 빨간 점을 아래로 이동
+    case down
+}
+
+/// 이동 명령을 SwiftUI 화면에 전달하기 위한 이벤트 래퍼
+struct MazeMoveEvent: Identifiable {
+    /// 같은 명령이 연속으로 와도 갱신되도록 고유 id 부여
+    let id = UUID()
+    /// 실제 이동 명령 값
+    let command: MazeMoveCommand
+}
+
 /// SwiftUI와 MultipeerConnectivity delegate를 함께 쓰기 위한 매니저 클래스
 final class NearbyDeviceManager: NSObject, ObservableObject {
     /// 홈뷰가 구독할 주변 기기 목록
@@ -62,6 +82,8 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
     @Published private(set) var isGameReady = false
     /// 현재 기기가 맡은 미로 조작 역할
     @Published private(set) var playerRole: CoGoPlayerRole?
+    /// 상대 기기에서 방금 받은 이동 명령 이벤트
+    @Published private(set) var latestMoveEvent: MazeMoveEvent?
 
     /// 같은 앱끼리만 찾도록 고정된 Bonjour 서비스 타입
     private static let serviceType = "cogo-nearby"
@@ -171,6 +193,22 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
     /// 세션 연결이 끝난 뒤 미로 화면을 시작 상태로 전환
     func consumeGameReady() {
         isGameReady = false
+    }
+
+    /// 현재 연결된 상대에게 미로 이동 명령을 전송하는 메서드
+    func sendMoveCommand(_ command: MazeMoveCommand) {
+        /// 연결된 상대가 없으면 전송하지 않음
+        guard !session.connectedPeers.isEmpty else { return }
+        /// 이동 명령을 Data로 인코딩
+        guard let encodedCommand = try? JSONEncoder().encode(command) else { return }
+
+        do {
+            try session.send(encodedCommand, toPeers: session.connectedPeers, with: .reliable)
+        } catch {
+            DispatchQueue.main.async {
+                self.authorizationState = "이동 동기화 실패: \(error.localizedDescription)"
+            }
+        }
     }
 }
 
@@ -352,7 +390,14 @@ extension NearbyDeviceManager: MCSessionDelegate {
         }
     }
 
-    func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {}
+    func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
+        /// 받은 데이터가 이동 명령이면 화면에 전달
+        if let command = try? JSONDecoder().decode(MazeMoveCommand.self, from: data) {
+            DispatchQueue.main.async {
+                self.latestMoveEvent = MazeMoveEvent(command: command)
+            }
+        }
+    }
 
     func session(_ session: MCSession, didReceive stream: InputStream, withName streamName: String, fromPeer peerID: MCPeerID) {}
 

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AVFoundation
+import Combine
 
 struct HomeView: View {
     /// 앱 전역에서 저장하는 사용자 프로필 정보
@@ -99,10 +100,10 @@ struct HomeView: View {
     }
     /// 버튼을 길게 누르고있을 때 반복이동을 시작하는 함수
     /// 기존 타이머를 끔(새 타이머 시작 전 기존 타이머를 정리)
-    private func startRepeatingMove(dx: CGFloat, dy: CGFloat, step: CGFloat) {
+    private func startRepeatingMove(command: MazeMoveCommand, step: CGFloat) {
         stopRepeatingMove()
         repeatTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            movePlayer(dx: dx * step, dy: dy * step)
+            applyLocalMove(command: command, step: step)
         }
     }
     
@@ -111,6 +112,38 @@ struct HomeView: View {
     private func stopRepeatingMove() {
         repeatTimer?.invalidate()
         repeatTimer = nil
+    }
+    
+    // MARK: - AI 사용한 부분
+    /// 현재 기기에서 버튼을 눌렀을 때 로컬 이동과 상대 동기화를 함께 처리
+    private func applyLocalMove(command: MazeMoveCommand, step: CGFloat) {
+        movePlayer(
+            dx: movementDelta(for: command, step: step).dx,
+            dy: movementDelta(for: command, step: step).dy
+        )
+        nearbyDeviceManager.sendMoveCommand(command)
+    }
+
+    /// 상대 기기에서 받은 이동 명령을 로컬 화면에 반영
+    private func applyRemoteMove(command: MazeMoveCommand, step: CGFloat) {
+        movePlayer(
+            dx: movementDelta(for: command, step: step).dx,
+            dy: movementDelta(for: command, step: step).dy
+        )
+    }
+
+    /// 이동 명령을 실제 x, y 변화량으로 바꿔주는 함수
+    private func movementDelta(for command: MazeMoveCommand, step: CGFloat) -> (dx: CGFloat, dy: CGFloat) {
+        switch command {
+        case .left:
+            return (-step, 0)
+        case .right:
+            return (step, 0)
+        case .up:
+            return (0, -step)
+        case .down:
+            return (0, step)
+        }
     }
     
     var body: some View {
@@ -180,44 +213,44 @@ struct HomeView: View {
                         HStack(spacing: 28) {
                             if nearbyDeviceManager.playerRole == .host {
                                 MazeControlButton(systemName: "arrow.left", size: 80) {
-                                    movePlayer(dx: -step, dy: 0)
+                                    applyLocalMove(command: .left, step: step)
                                 }
                                 .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
                                     if isPressing {
-                                        startRepeatingMove(dx: -1, dy: 0, step: step)
+                                        startRepeatingMove(command: .left, step: step)
                                     } else {
                                         stopRepeatingMove()
                                     }
                                 }, perform: {})
 
                                 MazeControlButton(systemName: "arrow.right", size: 80) {
-                                    movePlayer(dx: step, dy: 0)
+                                    applyLocalMove(command: .right, step: step)
                                 }
                                 .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
                                     if isPressing {
-                                        startRepeatingMove(dx: 1, dy: 0, step: step)
+                                        startRepeatingMove(command: .right, step: step)
                                     } else {
                                         stopRepeatingMove()
                                     }
                                 }, perform: {})
                             } else if nearbyDeviceManager.playerRole == .guest {
                                 MazeControlButton(systemName: "arrow.up", size: 80) {
-                                    movePlayer(dx: 0, dy: -step)
+                                    applyLocalMove(command: .up, step: step)
                                 }
                                 .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
                                     if isPressing {
-                                        startRepeatingMove(dx: 0, dy: -1, step: step)
+                                        startRepeatingMove(command: .up, step: step)
                                     } else {
                                         stopRepeatingMove()
                                     }
                                 }, perform: {})
 
                                 MazeControlButton(systemName: "arrow.down", size: 80) {
-                                    movePlayer(dx: 0, dy: step)
+                                    applyLocalMove(command: .down, step: step)
                                 }
                                 .onLongPressGesture(minimumDuration: 0.2, pressing: { isPressing in
                                     if isPressing {
-                                        startRepeatingMove(dx: 0, dy: 1, step: step)
+                                        startRepeatingMove(command: .down, step: step)
                                     } else {
                                         stopRepeatingMove()
                                     }
@@ -250,6 +283,11 @@ struct HomeView: View {
             playerXRatio = 155.0 / 300.0
             playerYRatio = 291.0 / 300.0
             nearbyDeviceManager.consumeGameReady()
+        }
+        /// 상대 기기에서 받은 이동 명령을 같은 미로에 반영
+        .onReceive(nearbyDeviceManager.$latestMoveEvent.compactMap { $0 }) { moveEvent in
+            let step: CGFloat = 0.01
+            applyRemoteMove(command: moveEvent.command, step: step)
         }
         /// 홈뷰가 사라지면 불필요한 탐색 중단
         .onDisappear {
