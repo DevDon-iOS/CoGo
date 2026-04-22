@@ -42,6 +42,16 @@ struct PendingGameInvite: Identifiable {
     let invitationHandler: (Bool, MCSession?) -> Void
 }
 
+/// 세션 연결 후 상대에게 전달할 실제 프로필 정보
+private struct SharedProfilePayload: Codable {
+    /// 사용자가 등록한 이름
+    let name: String
+    /// 사용자가 등록한 닉네임
+    let nickname: String
+    /// 표시 품질을 유지하는 선에서 압축한 프로필 사진 데이터
+    let photoData: Data?
+}
+
 /// CoGo 미로에서 각 기기가 맡는 조작 역할
 enum CoGoPlayerRole {
     /// 초대를 보낸 사람은 좌우 조작 담당
@@ -140,6 +150,7 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
     func updateLocalProfile(_ profile: Profile) {
         localProfile = profile
         rebuildAdvertiser()
+        sendLocalProfileIfPossible()
     }
 
     /// 홈뷰에서 주변 탐색을 다시 시작할 때 호출하는 메서드
@@ -217,6 +228,28 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
             }
         }
     }
+
+    /// 현재 연결된 상대에게 실제 프로필 데이터를 전송하는 메서드
+    func sendLocalProfileIfPossible() {
+        /// 연결된 상대가 없으면 전송하지 않음
+        guard !session.connectedPeers.isEmpty else { return }
+
+        let payload = SharedProfilePayload(
+            name: localProfile.name,
+            nickname: localProfile.nickname,
+            photoData: Self.resizedProfileData(from: localProfile.photoData)
+        )
+
+        guard let encodedPayload = try? JSONEncoder().encode(payload) else { return }
+
+        do {
+            try session.send(encodedPayload, toPeers: session.connectedPeers, with: .reliable)
+        } catch {
+            DispatchQueue.main.async {
+                self.authorizationState = "프로필 전송 실패: \(error.localizedDescription)"
+            }
+        }
+    }
 }
 
 private extension NearbyDeviceManager {
@@ -258,6 +291,22 @@ private extension NearbyDeviceManager {
 
         /// discoveryInfo 제한을 넘기면 사진 없이 advertise
         return encodedString.count <= 350 ? encodedString : nil
+    }
+
+    // MARK: - AI 사용한 부분
+    /// 세션으로 보낼 프로필 사진을 적당한 크기로 리사이즈하는 메서드
+    static func resizedProfileData(from photoData: Data?) -> Data? {
+        guard let photoData, let image = UIImage(data: photoData) else {
+            return nil
+        }
+
+        let targetSize = CGSize(width: 320, height: 320)
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let resizedImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+
+        return resizedImage.jpegData(compressionQuality: 0.72)
     }
 
     /// advertise에서 받은 thumbnail 문자열을 실제 Data로 복원
@@ -309,6 +358,38 @@ private extension NearbyDeviceManager {
         }
 
         authorizationState = nearbyPeers.isEmpty ? "주변 CoGo 기기를 찾는 중" : "주변 CoGo 기기 \(nearbyPeers.count)대 발견"
+    }
+
+    // MARK: - AI 사용한 부분
+    /// 세션으로 받은 실제 프로필 데이터로 기존 피어 정보를 갱신
+    func updatePeerProfile(_ peerID: MCPeerID, nickname: String, photoData: Data?) {
+        if let index = nearbyPeers.firstIndex(where: { $0.id == peerID }) {
+            let existingPeer = nearbyPeers[index]
+            let updatedPeer = NearbyPeer(
+                id: existingPeer.id,
+                displayName: existingPeer.displayName,
+                nickname: nickname,
+                photoData: photoData,
+                lastSeenAt: existingPeer.lastSeenAt
+            )
+            nearbyPeers[index] = updatedPeer
+
+            if activePeer?.id == peerID {
+                activePeer = updatedPeer
+            }
+        } else {
+            let peer = NearbyPeer(
+                id: peerID,
+                displayName: peerID.displayName,
+                nickname: nickname,
+                photoData: photoData,
+                lastSeenAt: Date()
+            )
+            nearbyPeers.append(peer)
+            if activePeer?.id == peerID || activePeer == nil {
+                activePeer = peer
+            }
+        }
     }
 
     /// 탐색 범위에서 사라진 기기를 목록에서 제거하는 메서드
@@ -389,6 +470,7 @@ extension NearbyDeviceManager: MCSessionDelegate {
                 }
                 self.authorizationState = "\(peerID.displayName)와 CoGo 연결 완료"
                 self.isGameReady = true
+                self.sendLocalProfileIfPossible()
             case .connecting:
                 self.authorizationState = "\(peerID.displayName)와 연결 중"
             case .notConnected:
@@ -401,7 +483,20 @@ extension NearbyDeviceManager: MCSessionDelegate {
         }
     }
 
+    // MARK: - AI 사용한 부분
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
+        /// 받은 데이터가 실제 프로필 정보면 먼저 피어 정보를 갱신
+        if let profilePayload = try? JSONDecoder().decode(SharedProfilePayload.self, from: data) {
+            DispatchQueue.main.async {
+                self.updatePeerProfile(
+                    peerID,
+                    nickname: profilePayload.nickname.isEmpty ? peerID.displayName : profilePayload.nickname,
+                    photoData: profilePayload.photoData
+                )
+            }
+            return
+        }
+
         /// 받은 데이터가 이동 명령이면 화면에 전달
         if let command = try? JSONDecoder().decode(MazeMoveCommand.self, from: data) {
             DispatchQueue.main.async {
