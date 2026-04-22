@@ -10,6 +10,8 @@ import Combine
 
 /// 컬렉션에 반영할 친구 프로필 한 건
 struct CollectedFriend: Codable, Equatable {
+    /// 친구 이름
+    let name: String
     /// 친구 닉네임
     let nickname: String
     /// 친구 프로필 사진 데이터

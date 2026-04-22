@@ -18,6 +18,8 @@ struct CollectionView: View {
 //    @State private var dragOffset: CGSize = .zero
     /// 안내 문구 시트를 띄울지 말지 저장하는 상태값
     @State private var isIntroSheetPresented = false
+    /// 획득한 친구 상세 프로필 시트를 띄울지 저장하는 상태값
+    @State private var isFriendProfilePresented = false
 //    /// 현재 확대/축소 배율 (기본값 1.0)
 //    @State private var scale: CGFloat = 1.0
 //    /// 핀치 중 실시간 배율 변화
@@ -55,6 +57,9 @@ struct CollectionView: View {
                         friend: collectedFriend,
                         size: centerCircleSize
                     )
+                    .onTapGesture {
+                        isFriendProfilePresented = true
+                    }
                 } else {
                     Circle()
                         .fill(Color.black)
@@ -128,6 +133,19 @@ struct CollectionView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .presentationDetents([.fraction(0.3)])
+        }
+        .sheet(isPresented: $isFriendProfilePresented) {
+            if let collectedFriend = collectedFriendStore.firstCollectedFriend {
+                ProfileModalView(
+                    displayProfile: Profile(
+                        id: "collected-friend",
+                        name: collectedFriend.name,
+                        nickname: collectedFriend.nickname,
+                        photoData: collectedFriend.photoData
+                    )
+                )
+                .presentationDetents([.fraction(0.7)])
+            }
         }
     }
 }

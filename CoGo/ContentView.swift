@@ -100,6 +100,7 @@ struct HomeView: View {
             if let activePeer = nearbyDeviceManager.activePeer {
                 collectedFriendStore.saveFirstCollectedFriend(
                     CollectedFriend(
+                        name: activePeer.name,
                         nickname: activePeer.nickname,
                         photoData: activePeer.photoData
                     )

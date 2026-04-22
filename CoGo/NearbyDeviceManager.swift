@@ -16,6 +16,8 @@ struct NearbyPeer: Identifiable, Equatable {
     let id: MCPeerID
     /// 기기의 기본 표시 이름
     let displayName: String
+    /// 사용자가 등록한 이름
+    let name: String
     /// 사용자가 등록한 닉네임
     let nickname: String
     /// 주변 탐색 단계에서 전달받은 작은 프로필 사진 데이터
@@ -255,11 +257,14 @@ final class NearbyDeviceManager: NSObject, ObservableObject {
 private extension NearbyDeviceManager {
     /// 내 프로필 정보로 advertise용 문자열 딕셔너리를 생성
     static func makeDiscoveryInfo(displayName: String, profile: Profile) -> [String: String] {
+        /// 이름이 비어 있으면 기기 이름으로 대체
+        let name = profile.name.isEmpty ? displayName : profile.name
         /// 닉네임이 비어 있으면 기기 이름으로 대체
         let nickname = profile.nickname.isEmpty ? displayName : profile.nickname
 
         var info: [String: String] = [
             "displayName": displayName,
+            "name": name,
             "nickname": nickname
         ]
 
@@ -339,12 +344,14 @@ private extension NearbyDeviceManager {
     /// 새 기기를 추가하거나 기존 기기 정보를 갱신하는 메서드
     func upsertPeer(_ peerID: MCPeerID, discoveryInfo: [String: String]?) {
         let displayName = discoveryInfo?["displayName"] ?? peerID.displayName
+        let name = discoveryInfo?["name"] ?? displayName
         let nickname = discoveryInfo?["nickname"] ?? displayName
         let photoData = Self.decodedThumbnailData(from: discoveryInfo?["thumbnail"])
 
         let peer = NearbyPeer(
             id: peerID,
             displayName: displayName,
+            name: name,
             nickname: nickname,
             photoData: photoData,
             lastSeenAt: Date()
@@ -362,12 +369,13 @@ private extension NearbyDeviceManager {
 
     // MARK: - AI 사용한 부분
     /// 세션으로 받은 실제 프로필 데이터로 기존 피어 정보를 갱신
-    func updatePeerProfile(_ peerID: MCPeerID, nickname: String, photoData: Data?) {
+    func updatePeerProfile(_ peerID: MCPeerID, name: String, nickname: String, photoData: Data?) {
         if let index = nearbyPeers.firstIndex(where: { $0.id == peerID }) {
             let existingPeer = nearbyPeers[index]
             let updatedPeer = NearbyPeer(
                 id: existingPeer.id,
                 displayName: existingPeer.displayName,
+                name: name,
                 nickname: nickname,
                 photoData: photoData,
                 lastSeenAt: existingPeer.lastSeenAt
@@ -381,6 +389,7 @@ private extension NearbyDeviceManager {
             let peer = NearbyPeer(
                 id: peerID,
                 displayName: peerID.displayName,
+                name: name,
                 nickname: nickname,
                 photoData: photoData,
                 lastSeenAt: Date()
@@ -490,6 +499,7 @@ extension NearbyDeviceManager: MCSessionDelegate {
             DispatchQueue.main.async {
                 self.updatePeerProfile(
                     peerID,
+                    name: profilePayload.name.isEmpty ? peerID.displayName : profilePayload.name,
                     nickname: profilePayload.nickname.isEmpty ? peerID.displayName : profilePayload.nickname,
                     photoData: profilePayload.photoData
                 )
