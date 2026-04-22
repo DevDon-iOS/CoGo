@@ -2,7 +2,7 @@
 //  ProfileStore.swift
 //  CoGo
 //
-//  Created by Codex on 4/2/26.
+//  Created by 이돈혁 on 4/2/26.
 //
 
 import Foundation
